@@ -52,12 +52,20 @@ class Master:
 
         sock.settimeout(1)
 
-
-
-        try:
-            msg = json.loads(msg)
-        except JSONDecodeError:
-            continue
+        #while master is running it waits on new jobs
+        while self.active:
+            time.sleep(0.5)
+            try:
+                message_bytes = sock.recv(4096)
+            except socket.timeout:
+                continue
+        
+            message_str = message_bytes.decode("utf-8")
+        
+            try:
+                message_dict = json.loads(message_str)
+            except JSONDecodeError:
+                continue
 
     def fault_tolerance(self):
 
