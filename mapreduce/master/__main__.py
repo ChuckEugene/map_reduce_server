@@ -7,7 +7,7 @@ import mapreduce.utils
 import glob
 import threading
 import socket
-from pathlib import Path 
+from pathlib import Path
 
 
 # Configure logging
@@ -22,17 +22,21 @@ class Master:
         #set master to active
         self.active = True
 
-        #initialize port 
+        #initialize port
         self.port = port
 
         #create new directory and delete old files
-        Path('tmp').mkdir(exist_ok=True)
+        self.temp_path = Path('tmp')
+        self.temp_path.mkdir(exist_ok=True)
         for i in glob.glob('tmp/job-*'):
             os.remove(i)
 
-        #initialize containers 
+        #initialize containers
         self.threads = []
         self.workers = {}
+
+        #Start job id at 0
+        self.jobid = 0
 
         #create UDP listener and fault tolerance thread
         UDP_listener = threading.Thread(target=self.listen_UDP)
@@ -41,7 +45,7 @@ class Master:
         self.threads.append(UDP_listener)
         self.threads.append(TCP_listener)
 
-        #the threads are run 
+        #the threads are run
         for thread in self.threads:
             thread.start()
 
@@ -61,9 +65,9 @@ class Master:
                 message_bytes = sock.recv(4096)
             except socket.timeout:
                 continue
-        
+
             message_str = message_bytes.decode('utf-8')
-        
+
             try:
                 message_dict = json.loads(message_str)
             except JSONDecodeError:
@@ -71,7 +75,7 @@ class Master:
 
 
     def listen_TCP(self):
-        
+
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("localhost", self.port))
@@ -100,24 +104,44 @@ class Master:
 
             message_bytes = b''.join(message_chunks)
             message_str = message_bytes.decode('utf-8')
-            
+
             try:
                 message_dict = json.loads(message_str)
             except json.JSONDecodeError:
                 continue
 
             self.handle_message(message_dict)
-            
+
 
     def handle_message(self, message):
         msg_type = message['message_type']
 
         if msg_type == 'shutdown':
-            self.shutdown()    
-
+            self.shutdown()
 
         if msg_type == 'register':
             self.register(message)
+
+        if msg_type == 'new_master_job':
+            self.new_master_job(message)
+
+    def new_master_job(self, message):
+        i_path = message["input_directory"]
+        o_path = message["output_directory"]
+        m_path = message["mapper_executable"]
+        r_path = message["reducer_executable"]
+        num_map = message["num_mappers"]
+        num_red = message["num_reducers"]
+
+        #assign job id and increment counter
+        idstr = 'job-' + str(self.jobid)
+
+        #create new directory for job
+        (self.temp_path / idstr).mkdir(exist_ok=True)
+        (self.temp_path / idstr / 'mapper-output').mkdir(exist_ok=True)
+        (self.temp_path / idstr / 'grouper-output').mkdir(exist_ok=True)
+        (self.temp_path / idstr / 'reducer-output').mkdir(exist_ok=True)
+
 
 
     def register(self, message):
@@ -146,7 +170,7 @@ class Master:
 
     def shutdown(self):
         message = {'message_type': 'shutdown'}
-        
+
         for worker in self.workers.values():
             if worker['status'] != 'dead':
                 self.send_message(worker['worker_port'], message)
