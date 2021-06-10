@@ -6,6 +6,7 @@ import click
 import mapreduce.utils
 import threading
 import socket
+import subprocess
 
 
 # Configure logging
@@ -110,8 +111,18 @@ class Worker:
                 self.heart_thread = threading.Thread(target=self.heartbeat, args=(master_port,))
                 self.heart_thread.start()
             elif message_dict['message_type'] == "new_worker_task":
-                print("working")
+                print("Input files:")
+                print(message_dict['input_files'])
+                print("executable")
+                print(message_dict['executable'])
+                print("output")
+                print(message_dict['output_directory'])
+                print(message_dict['output_directory'] + "/" + os.path.basename(message_dict['input_files'][0]))
                 
+                for file in message_dict['input_files']:
+                    inFile = open(file)
+                    outFile = open(message_dict['output_directory'] + "/" + os.path.basename(file) , 'w')
+                    subprocess.run([message_dict['executable']], stdin=inFile, stdout=outFile)
 
 
     
@@ -130,7 +141,7 @@ class Worker:
             }
             # Send a message
             message = json.dumps(message)
-            #sock.sendall(message.encode('utf-8'))
+            sock.sendall(message.encode('utf-8'))
             sock.close()
             time.sleep(2) 
         
