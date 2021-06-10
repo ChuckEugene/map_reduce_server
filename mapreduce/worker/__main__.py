@@ -111,21 +111,14 @@ class Worker:
                 self.heart_thread = threading.Thread(target=self.heartbeat, args=(master_port,))
                 self.heart_thread.start()
             elif message_dict['message_type'] == "new_worker_task":
-                print("Input files:")
-                print(message_dict['input_files'])
-                print("executable")
-                print(message_dict['executable'])
-                print("output")
-                print(message_dict['output_directory'])
-                print(message_dict['output_directory'] + "/" + os.path.basename(message_dict['input_files'][0]))
                 
                 output_files = []
                 
                 for file in message_dict['input_files']:
-                    inFile = open(file)
-                    outFile = open(message_dict['output_directory'] + "/" + os.path.basename(file) , 'w')
-                    output_files.append(message_dict['output_directory'] + "/" + os.path.basename(file))
-                    subprocess.run([message_dict['executable']], stdin=inFile, stdout=outFile)
+                    with open(file) as inFile:
+                        with open(message_dict['output_directory'] + "/" + os.path.basename(file) , 'w') as outFile:
+                            output_files.append(message_dict['output_directory'] + "/" + os.path.basename(file))
+                            subprocess.run([message_dict['executable']], stdin=inFile, stdout=outFile)
                 
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.connect(("localhost", master_port))
@@ -140,7 +133,36 @@ class Worker:
                 message = json.dumps(register_message)
                 sock.sendall(message.encode('utf-8'))
                 sock.close()
+            elif message_dict['message_type'] == "new_sort_task":
+                
+                words = []
+                
+                for file in message_dict['input_files']:
+                    with open(file, 'r') as inFile:
+                        for line in inFile.readlines():
+                            words.append(line)
+                    
+                
+                words.sort()
+                
+                
+                with open(message_dict['output_file'], 'w') as outFile:
+                    for word in words:
+                        outFile.write(word)
+                
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.connect(("localhost", master_port))
 
+                register_message = {
+                  "message_type": "status",
+                  "output_file" : message_dict['output_file'],
+                  "status": "finished",
+                  "worker_pid": self.pid
+                }
+
+                message = json.dumps(register_message)
+                sock.sendall(message.encode('utf-8'))
+                sock.close()
     
     def heartbeat(self,master_port):
                 
