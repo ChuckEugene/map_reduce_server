@@ -120,7 +120,7 @@ class Worker:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         # Connect to the UDP socket on server
-        sock.connect(("localhost", master_port))
+        sock.connect(("localhost", master_port - 1))
 
         message = {
             "message_type": "heartbeat",
