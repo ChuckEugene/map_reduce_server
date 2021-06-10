@@ -111,7 +111,7 @@ class Master:
                 continue
 
             self.handle_message(message_dict)
-
+            sock.close()
 
     def handle_message(self, message):
         msg_type = message['message_type']
