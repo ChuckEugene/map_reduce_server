@@ -116,24 +116,24 @@ class Worker:
 
     
     def heartbeat(self,master_port):
-        # Create an INET, DGRAM socket, this is UDP
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-        # Connect to the UDP socket on server
-        sock.connect(("localhost", master_port - 1))
-
-        message = {
-            "message_type": "heartbeat",
-            "worker_pid": self.pid
-        }
                 
         while self.alive == True:
+            # Create an INET, DGRAM socket, this is UDP
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+            # Connect to the UDP socket on server
+            sock.connect(("localhost", master_port - 1))
+
+            message = {
+                "message_type": "heartbeat",
+                "worker_pid": self.pid
+            }
             # Send a message
             message = json.dumps(message)
             #sock.sendall(message.encode('utf-8'))
+            sock.close()
             time.sleep(2) 
         
-        sock.close()
 
 
 @click.command()
