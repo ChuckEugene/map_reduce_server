@@ -20,9 +20,9 @@ class Worker:
         self.alive = False
         
         # Get PID
-        pid = os.getpid()
+        self.pid = os.getpid()
                 
-        listen_thread = threading.Thread(target=self.listeningToMaster, args=(worker_port,))
+        listen_thread = threading.Thread(target=self.listeningToMaster, args=(worker_port,master_port,))
         listen_thread.start()
                 
         # Send register message to Master
@@ -34,7 +34,7 @@ class Worker:
             "message_type": "register",
             "worker_host": "localhost",
             "worker_port": worker_port,
-            "worker_pid": pid
+            "worker_pid": self.pid
         }
         
         message = json.dumps(register_message)
@@ -54,7 +54,7 @@ class Worker:
         #time.sleep(120)
 
 
-    def listeningToMaster(self,worker_port):
+    def listeningToMaster(self,worker_port, master_port):
         # TCP Socket that listens for instructions
 
         listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -105,10 +105,13 @@ class Worker:
             if message_dict['message_type'] == "shutdown":
                 self.alive = False
                 break
-            elif message_dict['register_ack'] == "register_ack": 
+            elif message_dict['message_type'] == "register_ack": 
                 self.alive = True
                 self.heart_thread = threading.Thread(target=self.heartbeat, args=(master_port,))
                 self.heart_thread.start()
+            elif message_dict['message_type'] == "new_worker_task":
+                print("working")
+                
 
 
     
@@ -123,10 +126,13 @@ class Worker:
             "message_type": "heartbeat",
             "worker_pid": self.pid
         }
-
-        # Send a message
-        message = json.dumps({"hello": "world"})
-        sock.sendall(message.encode('utf-8'))
+                
+        while self.alive == True:
+            # Send a message
+            message = json.dumps(message)
+            #sock.sendall(message.encode('utf-8'))
+            time.sleep(2) 
+        
         sock.close()
 
 
