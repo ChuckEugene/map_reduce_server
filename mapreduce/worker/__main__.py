@@ -43,16 +43,6 @@ class Worker:
         sock.close()
                 
         listen_thread.join() # wait for the listen_thread to return
-        
-        # This is a fake message to demonstrate pretty printing with logging
-        #message_dict = {"message_type": "register_ack", "worker_host": "localhost", "worker_port": 6001, "worker_pid":77811}
-        
-        #logging.debug("Worker:%s received\n%s", worker_port, json.dumps(message_dict, indent=2),)
-
-        # TODO: you should remove this. This is just so the program doesn't
-        # exit immediately!
-        #logging.debug("IMPLEMENT ME!")
-        #time.sleep(120)
 
 
     def listeningToMaster(self,worker_port, master_port):
@@ -76,13 +66,7 @@ class Worker:
                 clientsocket, address = listen_sock.accept()
             except socket.timeout:
                 continue
-            print("Connection from", address[0])
-
-            # Receive data, one chunk at a time.  If recv() times out before we can
-            # read a chunk, then go back to the top of the loop and try again.
-            # When the client closes the connection, recv() returns empty data,
-            # which breaks out of the loop.  We make a simplifying assumption that
-            # the client will always cleanly close the connection.
+            
             message_chunks = []
             while True:
                 try:
@@ -144,7 +128,6 @@ class Worker:
                     
                 
                 words.sort()
-                
                 
                 with open(message_dict['output_file'], 'w') as outFile:
                     for word in words:
