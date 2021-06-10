@@ -155,11 +155,14 @@ class Master:
 
 
     def send_message(self,port,message):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.connect(('localhost', port))
-        json_msg = json.dumps(message)
-        sock.sendall(json_msg.encode('utf-8'))
-        sock.close()
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect(('localhost', port))
+            json_msg = json.dumps(message)
+            sock.sendall(json_msg.encode('utf-8'))
+            sock.close()
+        except:
+            print("Error")
 
 
 @click.command()
