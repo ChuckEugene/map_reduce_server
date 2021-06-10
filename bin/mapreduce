@@ -1,0 +1,86 @@
+#!/bin/bash
+#
+# mapreduce
+#
+# Start, stop, and check on the server
+#
+# Ahmed Usman <usmanaa@umich.edu>
+
+
+# Stop on errors, print commands
+# See https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
+set -Eeuo pipefail
+
+if [ -z ${1+x} ]; then exit 1; fi
+
+
+start_server(){
+      echo "starting mapreduce ..."
+
+      mapreduce-master 6000 & 1> /dev/null
+      sleep 2
+      mapreduce-worker 6000 6001 & 1> /dev/null
+      mapreduce-worker 6000 6002 & 1> /dev/null
+}
+
+stop_server(){
+  # Detect GNU vs BSD netcat.  We need netcat to close the connection after
+  # sending a message, which requires different options.
+  echo "stopping mapreduce ..."
+
+  set +o pipefail  # Avoid erroneous failures due to grep returning non-zero
+
+  if nc -h 2>&1 | grep -q "\-c"; then
+  NC="nc -c"
+  elif nc -h 2>&1 | grep -q "\-N"; then
+  NC="nc -N"
+  elif nc -h 2>&1 | grep -q "\-C"; then
+  NC="nc -C"
+  else
+  echo "Error detecting netcat version."
+  exit 1
+  fi
+  set -o pipefail
+
+  echo '{"message_type": "shutdown"}' | $NC localhost 6000 || true
+  sleep 2  # give the master time to receive signal and send to workers
+
+  echo "killing mapreduce master ..."
+  pkill -f mapreduce-master || true
+}
+
+#Start server
+if [ $1 == "start" ] ; then
+    if pgrep -f mapreduce-master &> /dev/null || pgrep -f mapreduce-worker &> /dev/null; then
+      echo "Error: mapreduce-master is already running"
+      exit 1;
+    fi
+
+    start_server
+
+#Stop server
+elif [ $1 == "stop" ] ; then
+    stop_server
+
+#Check status
+elif [ $1 == "status" ] ; then
+    if pgrep -f mapreduce-master &> /dev/null; then
+      echo "master running"
+    else
+      echo "master not running"
+    fi
+
+    if pgrep -f mapreduce-worker &> /dev/null; then
+      echo "workers running"
+    else
+      echo "workers not running"
+    fi
+
+#Restart server
+elif [ $1 == "restart" ] ; then
+      stop_server
+      start_server
+
+else
+  echo "Usage: mapreduce [COMMAND] | start, stop, status, restart"
+fi
