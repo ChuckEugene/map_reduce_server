@@ -163,6 +163,7 @@ class Master:
             input_files.sort()
             
             if len(self.currentTask) == 0:
+                logging.info("Master:%s begin map stage", self.port)
                 self.currentTask = [[input_files[z] for z in range(y, len(input_files), jobDict['message']['num_mappers'])] 
                                             for y in range(jobDict['message']['num_mappers'])]
             
@@ -172,11 +173,13 @@ class Master:
             
             for worker in self.workers.values():
                 if worker['status'] == "ready":
+                    print("Help")
+                    print(jobDict['message']['output_directory'])
                     message = {
                       "message_type": "new_worker_task",
                       "input_files": self.currentTask[0],
                       "executable": jobDict['message']['mapper_executable'],
-                      "output_directory": jobDict['message']['output_directory'],
+                      "output_directory": "tmp/job-"+str(jobDict['job_id'])+"/mapper-output",
                       "worker_pid": worker['worker_pid']
                     }
 
@@ -189,6 +192,7 @@ class Master:
                     worker['status'] = 'busy'
             
             if len(self.currentTask) == 0:
+                logging.info("Master:%s end map stage", self.port)
                 jobDict['status'] = "group"
             
         elif jobDict['status'] == "group":
@@ -203,7 +207,9 @@ class Master:
     def new_master_job(self, message):
         #assign job id and increment counter
         idstr = 'job-' + str(self.jobid)
-
+        
+        print("LOOK")
+        print(message['output_directory'])
 
         #create new directory for job
         (self.temp_path / idstr).mkdir(exist_ok=True)
