@@ -123,23 +123,29 @@ class Master:
 
     def handle_message(self, message):
         msg_type = message['message_type']
+        
+        print("handle message")
+        print(msg_type)
 
         if msg_type == 'shutdown':
             self.shutdown()
 
         if msg_type == 'register':
             self.register(message)
-            self.check_jobs()
+            if len(self.workers) == 1:
+                self.check_jobs()
 
         if msg_type == 'new_master_job':
             self.new_master_job(message)
             
         if msg_type == 'status':
             self.workers[message['worker_pid']]['status'] = 'ready'
+            self.check_jobs()
 
 
     def check_jobs(self):
         if self.activejob:
+            self.run_job(self.jobs[0])
             return
         elif len(self.jobs) == 0 or len(self.workers) == 0:
             return
@@ -155,28 +161,35 @@ class Master:
         if jobDict['status'] == "map":
             input_files = os.listdir(jobDict['message']['input_directory'])
             input_files.sort()
-
-            tasks = [[input_files[z] for z in range(y, len(input_files), jobDict['message']['num_mappers'])] 
-                                            for y in range(jobDict['message']['num_mappers'])]
-
-            print(tasks)
             
-            while (len(tasks) != 0):
-                for worker in self.workers.values():
-                    if worker['status'] == "ready":
-                        message = {
-                          "message_type": "new_worker_task",
-                          "input_files": tasks[0],
-                          "executable": jobDict['message']['mapper_executable'],
-                          "output_directory": jobDict['message']['output_directory'],
-                          "worker_pid": worker['worker_pid']
-                        }
+            if len(self.currentTask) == 0:
+                self.currentTask = [[input_files[z] for z in range(y, len(input_files), jobDict['message']['num_mappers'])] 
+                                            for y in range(jobDict['message']['num_mappers'])]
+            
 
-                        tasks.pop(0)
+            #tasks = [[input_files[z] for z in range(y, len(input_files), jobDict['message']['num_mappers'])] 
+                                            #for y in range(jobDict['message']['num_mappers'])]
+            
+            for worker in self.workers.values():
+                if worker['status'] == "ready":
+                    message = {
+                      "message_type": "new_worker_task",
+                      "input_files": self.currentTask[0],
+                      "executable": jobDict['message']['mapper_executable'],
+                      "output_directory": jobDict['message']['output_directory'],
+                      "worker_pid": worker['worker_pid']
+                    }
 
-                        self.send_message(worker['worker_pid'],message)
+                    print(self.currentTask[0])
 
-                        worker['status'] = 'busy'
+                    self.currentTask.pop(0)
+
+                    self.send_message(worker['worker_pid'],message)
+
+                    worker['status'] = 'busy'
+            
+            if len(self.currentTask) == 0:
+                jobDict['status'] = "group"
             
         elif jobDict['status'] == "group":
             print("Group")
