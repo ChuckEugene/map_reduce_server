@@ -123,9 +123,6 @@ class Master:
 
     def handle_message(self, message):
         msg_type = message['message_type']
-        
-        print("handle message")
-        print(msg_type)
 
         if msg_type == 'shutdown':
             self.shutdown()
@@ -159,22 +156,18 @@ class Master:
         #Run the job
         
         if jobDict['status'] == "map":
-            input_files = os.listdir(jobDict['message']['input_directory'])
-            input_files.sort()
             
             if len(self.currentTask) == 0:
                 logging.info("Master:%s begin map stage", self.port)
-                self.currentTask = [[input_files[z] for z in range(y, len(input_files), jobDict['message']['num_mappers'])] 
+                
+                input_files = os.listdir(jobDict['message']['input_directory'])
+                input_files.sort()
+                
+                self.currentTask = [[jobDict['message']['input_directory'] + "/" + input_files[z] for z in range(y, len(input_files), jobDict['message']['num_mappers'])] 
                                             for y in range(jobDict['message']['num_mappers'])]
-            
-
-            #tasks = [[input_files[z] for z in range(y, len(input_files), jobDict['message']['num_mappers'])] 
-                                            #for y in range(jobDict['message']['num_mappers'])]
             
             for worker in self.workers.values():
                 if worker['status'] == "ready":
-                    print("Help")
-                    print(jobDict['message']['output_directory'])
                     message = {
                       "message_type": "new_worker_task",
                       "input_files": self.currentTask[0],
@@ -182,8 +175,6 @@ class Master:
                       "output_directory": "tmp/job-"+str(jobDict['job_id'])+"/mapper-output",
                       "worker_pid": worker['worker_pid']
                     }
-
-                    print(self.currentTask[0])
 
                     self.currentTask.pop(0)
 
@@ -196,7 +187,7 @@ class Master:
                 jobDict['status'] = "group"
             
         elif jobDict['status'] == "group":
-            print("Group")
+            
         elif jobDict['status'] == "reduce":
             print("Reduce")
         
@@ -207,9 +198,6 @@ class Master:
     def new_master_job(self, message):
         #assign job id and increment counter
         idstr = 'job-' + str(self.jobid)
-        
-        print("LOOK")
-        print(message['output_directory'])
 
         #create new directory for job
         (self.temp_path / idstr).mkdir(exist_ok=True)
