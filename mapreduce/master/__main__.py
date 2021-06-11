@@ -187,7 +187,7 @@ class Master:
                 jobDict['status'] = "group"
             
         elif jobDict['status'] == "group":
-            
+            print("Group")
         elif jobDict['status'] == "reduce":
             print("Reduce")
         
