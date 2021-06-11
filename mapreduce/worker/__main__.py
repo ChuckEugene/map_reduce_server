@@ -84,6 +84,11 @@ class Worker:
 
             try:
                 message_dict = json.loads(message_str)
+                logging.debug(
+                    "Master:%s received\n%s",
+                    self.port,
+                    json.dumps(message_dict, indent=2),
+                )
             except json.JSONDecodeError:
                 continue
 
@@ -147,7 +152,7 @@ class Worker:
                 sock.sendall(message.encode('utf-8'))
                 sock.close()
         listen_sock.close()
-        
+
     def heartbeat(self,master_port):
 
         while self.alive == True:
