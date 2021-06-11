@@ -40,6 +40,10 @@ class Master:
 
         #Start job id at 0
         self.jobid = 0
+        
+        self.currentjobid = -1
+        self.activejob = False
+        self.currentTask = []
 
         #create UDP listener and fault tolerance thread
         UDP_listener = threading.Thread(target=self.listen_UDP)
@@ -125,31 +129,63 @@ class Master:
 
         if msg_type == 'register':
             self.register(message)
-            if len(self.workers) == 1:
-                self.check_jobs()
+            self.check_jobs()
 
         if msg_type == 'new_master_job':
             self.new_master_job(message)
 
 
     def check_jobs(self):
-        if self.active_job:
+        if self.activejob:
             return
-        elif self.jobs:
+        elif len(self.jobs) == 0 or len(self.workers) == 0:
+            return
+        else: #we have jobs and workers available and a job isn't currently running
+            self.currentjobid = self.currentjobid + 1
             self.run_job(self.jobs.pop(0))
+            return
 
-
-    def run_job(self):
+    def run_job(self, jobDict):
         self.activejob = True
         #Run the job
-        input_files = os.listdir(message['input_directory']).sort()
-
-        tasks = [[input_files[z] for z in range(y, len(input_files), n)] 
-                                        for y in range(message['num_mappers'])]
+        input_files = os.listdir(jobDict['message']['input_directory'])
+        input_files.sort()
+                
+        tasks = [[input_files[z] for z in range(y, len(input_files), jobDict['message']['num_mappers'])] 
+                                        for y in range(jobDict['message']['num_mappers'])]
+        
+        print(tasks)
+        
+        for index,workerID in enumerate(self.workers):
+            
+            executable = jobDict['message']['mapper_executable']
+            
+            if jobDict['status'] == "reduce":
+                executable = jobDict['message']['reducer_executable']
+            
+            message = {
+              "message_type": "new_worker_task",
+              "input_files": tasks[index],
+              "executable": executable,
+              "output_directory": jobDict['message']['output_directory']
+              "worker_pid": workerID
+            }
+            
+            tasks.pop(0)
+            
+            send_message(self,workerID,message)
+            
+            if (index + 1 == len(tasks)):
+                break
+        
+        
+        
+        
 
     def new_master_job(self, message):
         #assign job id and increment counter
         idstr = 'job-' + str(self.jobid)
+
 
         #create new directory for job
         (self.temp_path / idstr).mkdir(exist_ok=True)
@@ -157,9 +193,11 @@ class Master:
         (self.temp_path / idstr / 'grouper-output').mkdir(exist_ok=True)
         (self.temp_path / idstr / 'reducer-output').mkdir(exist_ok=True)
 
-        self.jobs.append(message)
+        self.jobs.append({"message": message, "job_id": self.jobid, "status": "map"})
+        #Status: "map" -> "group" -> "reduce"
         self.jobid += 1
         self.check_jobs()
+
 
 
     def register(self, message):
@@ -186,6 +224,7 @@ class Master:
         self.send_message(w_port, worker_msg)
 
 
+
     def shutdown(self):
         message = {'message_type': 'shutdown'}
 
@@ -194,6 +233,8 @@ class Master:
                 self.send_message(worker['worker_port'], message)
 
         self.active = False
+
+
 
 
     def send_message(self,port,message):
