@@ -40,7 +40,7 @@ class Master:
 
         #Start job id at 0
         self.jobid = 0
-        
+
         self.currentjobid = -1
         self.activejob = False
         self.currentTask = []
@@ -77,6 +77,11 @@ class Master:
 
             try:
                 message_dict = json.loads(message_str)
+                logging.debug(
+                    "Master:%s received\n%s",
+                    self.port,
+                    json.dumps(message_dict, indent=2),
+                )
             except JSONDecodeError:
                 continue
         sock.close()
@@ -115,6 +120,11 @@ class Master:
 
             try:
                 message_dict = json.loads(message_str)
+                logging.debug(
+                    "Master:%s received\n%s",
+                    self.port,
+                    json.dumps(message_dict, indent=2),
+                )
             except json.JSONDecodeError:
                 continue
 
@@ -134,7 +144,7 @@ class Master:
 
         if msg_type == 'new_master_job':
             self.new_master_job(message)
-            
+
         if msg_type == 'status':
             self.workers[message['worker_pid']]['status'] = 'ready'
             self.check_jobs()
@@ -154,18 +164,18 @@ class Master:
     def run_job(self, jobDict):
         self.activejob = True
         #Run the job
-        
+
         if jobDict['status'] == "map":
-            
+
             if len(self.currentTask) == 0:
                 logging.info("Master:%s begin map stage", self.port)
-                
+
                 input_files = os.listdir(jobDict['message']['input_directory'])
                 input_files.sort()
-                
-                self.currentTask = [[jobDict['message']['input_directory'] + "/" + input_files[z] for z in range(y, len(input_files), jobDict['message']['num_mappers'])] 
+
+                self.currentTask = [[jobDict['message']['input_directory'] + "/" + input_files[z] for z in range(y, len(input_files), jobDict['message']['num_mappers'])]
                                             for y in range(jobDict['message']['num_mappers'])]
-            
+
             for worker in self.workers.values():
                 if worker['status'] == "ready":
                     message = {
@@ -181,19 +191,19 @@ class Master:
                     self.send_message(worker['worker_pid'],message)
 
                     worker['status'] = 'busy'
-            
+
             if len(self.currentTask) == 0:
                 logging.info("Master:%s end map stage", self.port)
                 jobDict['status'] = "group"
-            
+
         elif jobDict['status'] == "group":
             print("Group")
         elif jobDict['status'] == "reduce":
             print("Reduce")
-        
-        
-        
-        
+
+
+
+
 
     def new_master_job(self, message):
         #assign job id and increment counter
