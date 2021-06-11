@@ -133,6 +133,9 @@ class Master:
 
         if msg_type == 'new_master_job':
             self.new_master_job(message)
+            
+        if msg_type == 'status':
+            self.workers[message['worker_pid']]['status'] = 'ready'
 
 
     def check_jobs(self):
@@ -142,41 +145,43 @@ class Master:
             return
         else: #we have jobs and workers available and a job isn't currently running
             self.currentjobid = self.currentjobid + 1
-            self.run_job(self.jobs.pop(0))
+            self.run_job(self.jobs[0])
             return
 
     def run_job(self, jobDict):
         self.activejob = True
         #Run the job
-        input_files = os.listdir(jobDict['message']['input_directory'])
-        input_files.sort()
-                
-        tasks = [[input_files[z] for z in range(y, len(input_files), jobDict['message']['num_mappers'])] 
-                                        for y in range(jobDict['message']['num_mappers'])]
         
-        print(tasks)
-        
-        for index,workerID in enumerate(self.workers):
+        if jobDict['status'] == "map":
+            input_files = os.listdir(jobDict['message']['input_directory'])
+            input_files.sort()
+
+            tasks = [[input_files[z] for z in range(y, len(input_files), jobDict['message']['num_mappers'])] 
+                                            for y in range(jobDict['message']['num_mappers'])]
+
+            print(tasks)
             
-            executable = jobDict['message']['mapper_executable']
+            while (len(tasks) != 0):
+                for worker in self.workers.values():
+                    if worker['status'] == "ready":
+                        message = {
+                          "message_type": "new_worker_task",
+                          "input_files": tasks[0],
+                          "executable": jobDict['message']['mapper_executable'],
+                          "output_directory": jobDict['message']['output_directory'],
+                          "worker_pid": worker['worker_pid']
+                        }
+
+                        tasks.pop(0)
+
+                        self.send_message(worker['worker_pid'],message)
+
+                        worker['status'] = 'busy'
             
-            if jobDict['status'] == "reduce":
-                executable = jobDict['message']['reducer_executable']
-            
-            message = {
-              "message_type": "new_worker_task",
-              "input_files": tasks[index],
-              "executable": executable,
-              "output_directory": jobDict['message']['output_directory']
-              "worker_pid": workerID
-            }
-            
-            tasks.pop(0)
-            
-            send_message(self,workerID,message)
-            
-            if (index + 1 == len(tasks)):
-                break
+        elif jobDict['status'] == "group":
+            print("Group")
+        elif jobDict['status'] == "reduce":
+            print("Reduce")
         
         
         
