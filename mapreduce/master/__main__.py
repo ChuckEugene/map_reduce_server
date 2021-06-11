@@ -126,22 +126,23 @@ class Master:
         if msg_type == 'register':
             self.register(message)
             if len(self.workers) == 1:
-                check_jobs()
+                self.check_jobs()
 
         if msg_type == 'new_master_job':
             self.new_master_job(message)
 
 
-    def check_jobs():
-        if self.activejob:
+    def check_jobs(self):
+        if self.active_job:
             return
-        elif !self.jobs.empty():
-            run_job(self.jobs.pop(0))
+        elif self.jobs:
+            self.run_job(self.jobs.pop(0))
 
-    def run_job():
+
+    def run_job(self):
         self.activejob = True
         #Run the job
-        input_files = os.listdir(message['input_directory'])).sort()
+        input_files = os.listdir(message['input_directory']).sort()
 
         tasks = [[input_files[z] for z in range(y, len(input_files), n)] 
                                         for y in range(message['num_mappers'])]
@@ -150,17 +151,15 @@ class Master:
         #assign job id and increment counter
         idstr = 'job-' + str(self.jobid)
 
-
         #create new directory for job
         (self.temp_path / idstr).mkdir(exist_ok=True)
         (self.temp_path / idstr / 'mapper-output').mkdir(exist_ok=True)
         (self.temp_path / idstr / 'grouper-output').mkdir(exist_ok=True)
         (self.temp_path / idstr / 'reducer-output').mkdir(exist_ok=True)
 
-        jobs.append(message)
+        self.jobs.append(message)
         self.jobid += 1
-        check_jobs()
-
+        self.check_jobs()
 
 
     def register(self, message):
@@ -187,7 +186,6 @@ class Master:
         self.send_message(w_port, worker_msg)
 
 
-
     def shutdown(self):
         message = {'message_type': 'shutdown'}
 
@@ -196,8 +194,6 @@ class Master:
                 self.send_message(worker['worker_port'], message)
 
         self.active = False
-
-
 
 
     def send_message(self,port,message):
