@@ -22,6 +22,7 @@ class Master:
 
         #set master to active
         self.active = True
+        self.active_job = False
 
         #initialize port
         self.port = port
@@ -35,6 +36,7 @@ class Master:
         #initialize containers
         self.threads = []
         self.workers = {}
+        self.jobs = []
 
         #Start job id at 0
         self.jobid = 0
@@ -123,26 +125,41 @@ class Master:
 
         if msg_type == 'register':
             self.register(message)
+            if len(self.workers) == 1:
+                check_jobs()
 
         if msg_type == 'new_master_job':
             self.new_master_job(message)
 
-    def new_master_job(self, message):
-        i_path = message["input_directory"]
-        o_path = message["output_directory"]
-        m_path = message["mapper_executable"]
-        r_path = message["reducer_executable"]
-        num_map = message["num_mappers"]
-        num_red = message["num_reducers"]
 
+    def check_jobs():
+        if self.activejob:
+            return
+        elif !self.jobs.empty():
+            run_job(self.jobs.pop(0))
+
+    def run_job():
+        self.activejob = True
+        #Run the job
+        input_files = os.listdir(message['input_directory'])).sort()
+
+        tasks = [[input_files[z] for z in range(y, len(input_files), n)] 
+                                        for y in range(message['num_mappers'])]
+
+    def new_master_job(self, message):
         #assign job id and increment counter
         idstr = 'job-' + str(self.jobid)
+
 
         #create new directory for job
         (self.temp_path / idstr).mkdir(exist_ok=True)
         (self.temp_path / idstr / 'mapper-output').mkdir(exist_ok=True)
         (self.temp_path / idstr / 'grouper-output').mkdir(exist_ok=True)
         (self.temp_path / idstr / 'reducer-output').mkdir(exist_ok=True)
+
+        jobs.append(message)
+        self.jobid += 1
+        check_jobs()
 
 
 
@@ -168,6 +185,7 @@ class Master:
         }
 
         self.send_message(w_port, worker_msg)
+
 
 
     def shutdown(self):

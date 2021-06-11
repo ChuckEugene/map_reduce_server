@@ -11,37 +11,37 @@ import subprocess
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
-    
+
 
 class Worker:
     def __init__(self, master_port, worker_port):
         logging.info("Starting worker:%s", worker_port)
         logging.info("Worker:%s PWD %s", worker_port, os.getcwd())
-        
+
         self.alive = False
-        
+
         # Get PID
         self.pid = os.getpid()
-                
+
         listen_thread = threading.Thread(target=self.listeningToMaster, args=(worker_port,master_port,))
         listen_thread.start()
-                
+
         # Send register message to Master
-        
+
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(("localhost", master_port))
-        
+
         register_message = {
             "message_type": "register",
             "worker_host": "localhost",
             "worker_port": worker_port,
             "worker_pid": self.pid
         }
-        
+
         message = json.dumps(register_message)
         sock.sendall(message.encode('utf-8'))
         sock.close()
-                
+
         listen_thread.join() # wait for the listen_thread to return
 
 
@@ -66,7 +66,7 @@ class Worker:
                 clientsocket, address = listen_sock.accept()
             except socket.timeout:
                 continue
-            
+
             message_chunks = []
             while True:
                 try:
@@ -90,20 +90,20 @@ class Worker:
             if message_dict['message_type'] == "shutdown":
                 self.alive = False
                 break
-            elif message_dict['message_type'] == "register_ack": 
+            elif message_dict['message_type'] == "register_ack":
                 self.alive = True
                 self.heart_thread = threading.Thread(target=self.heartbeat, args=(master_port,))
                 self.heart_thread.start()
             elif message_dict['message_type'] == "new_worker_task":
-                
+
                 output_files = []
-                
+
                 for file in message_dict['input_files']:
                     with open(file) as inFile:
                         with open(message_dict['output_directory'] + "/" + os.path.basename(file) , 'w') as outFile:
                             output_files.append(message_dict['output_directory'] + "/" + os.path.basename(file))
                             subprocess.run([message_dict['executable']], stdin=inFile, stdout=outFile)
-                
+
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.connect(("localhost", master_port))
 
@@ -118,21 +118,21 @@ class Worker:
                 sock.sendall(message.encode('utf-8'))
                 sock.close()
             elif message_dict['message_type'] == "new_sort_task":
-                
+
                 words = []
-                
+
                 for file in message_dict['input_files']:
                     with open(file, 'r') as inFile:
                         for line in inFile.readlines():
                             words.append(line)
-                    
-                
+
+
                 words.sort()
-                
+
                 with open(message_dict['output_file'], 'w') as outFile:
                     for word in words:
                         outFile.write(word)
-                
+
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.connect(("localhost", master_port))
 
@@ -146,9 +146,10 @@ class Worker:
                 message = json.dumps(register_message)
                 sock.sendall(message.encode('utf-8'))
                 sock.close()
-    
+        listen_sock.close()
+        
     def heartbeat(self,master_port):
-                
+
         while self.alive == True:
             # Create an INET, DGRAM socket, this is UDP
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -164,8 +165,8 @@ class Worker:
             message = json.dumps(message)
             sock.sendall(message.encode('utf-8'))
             sock.close()
-            time.sleep(2) 
-        
+            time.sleep(2)
+
 
 
 @click.command()
