@@ -6,6 +6,7 @@ import click
 import mapreduce.utils
 import glob
 import threading
+import shutil
 import socket
 from pathlib import Path
 
@@ -29,7 +30,7 @@ class Master:
         self.temp_path = Path('tmp')
         self.temp_path.mkdir(exist_ok=True)
         for i in glob.glob('tmp/job-*'):
-            os.remove(i)
+            shutil.rmtree(i)
 
         #initialize containers
         self.threads = []
@@ -72,6 +73,7 @@ class Master:
                 message_dict = json.loads(message_str)
             except JSONDecodeError:
                 continue
+        sock.close()
 
 
     def listen_TCP(self):
@@ -111,7 +113,7 @@ class Master:
                 continue
 
             self.handle_message(message_dict)
-            sock.close()
+        sock.close()
 
     def handle_message(self, message):
         msg_type = message['message_type']
@@ -176,6 +178,8 @@ class Master:
                 self.send_message(worker['worker_port'], message)
 
         self.active = False
+
+
 
 
     def send_message(self,port,message):
