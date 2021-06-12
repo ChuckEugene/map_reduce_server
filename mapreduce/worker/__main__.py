@@ -86,7 +86,7 @@ class Worker:
                 message_dict = json.loads(message_str)
                 logging.debug(
                     "Master:%s received\n%s",
-                    self.port,
+                    worker_port,
                     json.dumps(message_dict, indent=2),
                 )
             except json.JSONDecodeError:
