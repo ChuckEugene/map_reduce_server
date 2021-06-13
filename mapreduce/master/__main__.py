@@ -38,6 +38,7 @@ class Master:
         self.threads = []
         self.workers = {}
         self.jobs = []
+        self.ping_ids = []
 
         #Start job id at 0
         self.jobid = 0
@@ -51,9 +52,12 @@ class Master:
         #create UDP listener and fault tolerance thread
         UDP_listener = threading.Thread(target=self.listen_UDP)
         TCP_listener = threading.Thread(target=self.listen_TCP)
+        Ping_listener = threading.Thread(target=self.fault_tolerance)
+        
         
         self.threads.append(UDP_listener)
         self.threads.append(TCP_listener)
+        self.threads.append(Ping_listener)
 
         #the threads are run
         for thread in self.threads:
@@ -63,7 +67,7 @@ class Master:
         
     def listen_UDP(self):
         #the socket that takes in worker pings
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("localhost", self.port - 1))
 
@@ -83,7 +87,45 @@ class Master:
                 message_dict = json.loads(message_str)
             except JSONDecodeError:
                 continue
+            self.ping_ids.append(message_dict['worker_pid'])
+
         sock.close()
+
+    def fault_tolerance(self):
+
+        #container tracks workers that missed pings
+        missed_pings = {}
+        
+        #while loop runs every 2 seconds
+        while self.active:
+            time.sleep(2)
+
+            #any new worker keys are updated
+            worker_pids = self.workers.keys()
+
+            #iterate through all workers
+            for w_pid in worker_pids:
+                
+                #if master recieved a ping set its missed pings to zero
+                if int(w_pid) in self.ping_ids:
+                    missed_pings[w_pid] = 0
+
+                #if not add one
+                elif w_pid in missed_pings.keys():
+                    missed_pings[w_pid] += 1
+
+                else:
+                    missed_pings[w_pid] = 1
+
+                #if 5 missed pings set it to dead
+                if missed_pings[w_pid] > 4:
+                    if self.workers[w_pid]['status'] != 'dead':
+                        print('WORKER', w_pid, 'FATALITY!!!')
+                        self.workers[w_pid]['status'] = 'dead'
+
+                self.ping_ids = []
+
+            
 
 
     def listen_TCP(self):
