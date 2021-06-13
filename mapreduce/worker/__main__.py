@@ -1,20 +1,24 @@
+"""Worker main module."""
+
 import os
 import logging
 import json
 import time
-import click
-import mapreduce.utils
 import threading
 import socket
 import subprocess
-
+import click
+import mapreduce.utils
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
 
 class Worker:
+    """Worker class."""
+
     def __init__(self, master_port, worker_port):
+        """Init func."""
         logging.info("Starting worker:%s", worker_port)
         logging.info("Worker:%s PWD %s", worker_port, os.getcwd())
 
@@ -23,7 +27,8 @@ class Worker:
         # Get PID
         self.pid = os.getpid()
 
-        listen_thread = threading.Thread(target=self.listeningToMaster, args=(worker_port,master_port,))
+        listen_thread = threading.Thread(target=self.listeningToMaster,
+                                         args=(worker_port, master_port,))
         listen_thread.start()
 
         # Send register message to Master
@@ -42,12 +47,10 @@ class Worker:
         sock.sendall(message.encode('utf-8'))
         sock.close()
 
-        listen_thread.join() # wait for the listen_thread to return
+        listen_thread.join()
 
-
-    def listeningToMaster(self,worker_port, master_port):
-        # TCP Socket that listens for instructions
-
+    def listeningToMaster(self, worker_port, master_port):
+        """TCP Socket that listens for instructions."""
         listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # Bind the socket to the server
@@ -55,12 +58,12 @@ class Worker:
         listen_sock.bind(("localhost", worker_port))
         listen_sock.listen()
 
-        # Socket accept() and recv() will block for a maximum of 1 second.  If you
+        # Socket accept() and recv() will block for a maximum of 1 second.
         # omit this, it blocks indefinitely, waiting for a connection.
         listen_sock.settimeout(1)
 
         while True:
-            # Wait for a connection for 1s.  The socket library avoids consuming
+            # Wait for a connection for 1s.  The socket library avoids
             # CPU while waiting for a connection.
             try:
                 clientsocket, address = listen_sock.accept()
@@ -97,7 +100,8 @@ class Worker:
                 break
             elif message_dict['message_type'] == "register_ack":
                 self.alive = True
-                self.heart_thread = threading.Thread(target=self.heartbeat, args=(master_port,))
+                self.heart_thread = threading.Thread(target=self.heartbeat,
+                                                     args=(master_port,))
                 self.heart_thread.start()
             elif message_dict['message_type'] == "new_worker_task":
 
@@ -105,16 +109,18 @@ class Worker:
 
                 for file in message_dict['input_files']:
                     with open(file) as inFile:
-                        with open(message_dict['output_directory'] + "/" + os.path.basename(file) , 'w') as outFile:
-                            output_files.append(message_dict['output_directory'] + "/" + os.path.basename(file))
-                            subprocess.run([message_dict['executable']], stdin=inFile, stdout=outFile)
+                        with open(message_dict['output_directory'] + "/" + os.path.basename(file), 'w') as outFile:
+                            output_files.append(message_dict['output_directory'] +
+                                                "/" + os.path.basename(file))
+                            subprocess.run([message_dict['executable']],
+                                           stdin=inFile, stdout=outFile)
 
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.connect(("localhost", master_port))
 
                 register_message = {
                   "message_type": "status",
-                  "output_files" : output_files,
+                  "output_files": output_files,
                   "status": "finished",
                   "worker_pid": self.pid
                 }
@@ -131,7 +137,6 @@ class Worker:
                         for line in inFile.readlines():
                             words.append(line)
 
-
                 words.sort()
 
                 with open(message_dict['output_file'], 'w') as outFile:
@@ -143,7 +148,7 @@ class Worker:
 
                 register_message = {
                   "message_type": "status",
-                  "output_file" : message_dict['output_file'],
+                  "output_file": message_dict['output_file'],
                   "status": "finished",
                   "worker_pid": self.pid
                 }
@@ -153,9 +158,9 @@ class Worker:
                 sock.close()
         listen_sock.close()
 
-    def heartbeat(self,master_port):
-
-        while self.alive == True:
+    def heartbeat(self, master_port):
+        """Heartbeat sent to master."""
+        while self.alive:
             # Create an INET, DGRAM socket, this is UDP
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -173,11 +178,11 @@ class Worker:
             time.sleep(2)
 
 
-
 @click.command()
 @click.argument("master_port", nargs=1, type=int)
 @click.argument("worker_port", nargs=1, type=int)
 def main(master_port, worker_port):
+    """Yo this is the function."""
     Worker(master_port, worker_port)
 
 
