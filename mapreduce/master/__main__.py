@@ -122,6 +122,11 @@ class Master:
                     if self.workers[w_pid]['status'] != 'dead':
                         print('WORKER', w_pid, 'FATALITY!!!')
                         self.workers[w_pid]['status'] = 'dead'
+                        
+                        if work['task'] != None:
+                            self.currentTask.append(work['task'])
+                            self.worker_reg_order.remove(work['worker_pid'])
+                            self.check_jobs()
 
                 self.ping_ids = []
 
@@ -273,12 +278,14 @@ class Master:
                           "worker_pid": worker['worker_pid']
                         }
 
-                        self.currentTask.pop(0)
+                        task = self.currentTask.pop(0)
                         self.currentWorkers = self.currentWorkers + 1
 
                         self.send_message(worker['worker_pid'],message)
+                        
+                        self.workers[worker['worker_pid']]['task'] = task
 
-                        self.workers[worker['worker_pid']]['status'] = 'busy1'
+                        self.workers[worker['worker_pid']]['status'] = 'busy'
                                     
             if len(self.currentTask) == 0 and self.currentWorkers == 0: 
                 logging.info("Master:%s end map stage", self.port)
@@ -328,12 +335,13 @@ class Master:
                         
                         self.sortedNum = self.sortedNum + 1
 
-                        self.currentTask.pop(0)
+                        task = self.currentTask.pop(0)
                         self.currentWorkers = self.currentWorkers + 1
 
                         self.send_message(worker['worker_pid'],message)
                         
-                        self.workers[worker['worker_pid']]['status'] = 'busy2'
+                        self.workers[worker['worker_pid']]['task'] = task
+                        self.workers[worker['worker_pid']]['status'] = 'busy'
                         
             
             if len(self.currentTask) == 0 and self.currentWorkers == 0:
@@ -387,13 +395,15 @@ class Master:
                         }
                         
 
-                        self.currentTask.pop(0)
+                        task = self.currentTask.pop(0)
                         self.currentWorkers = self.currentWorkers + 1
                         
 
                         self.send_message(worker['worker_pid'],message)
-
-                        self.workers[worker['worker_pid']]['status'] = 'busy3'
+                        
+                        
+                        self.workers[worker['worker_pid']]['task'] = task
+                        self.workers[worker['worker_pid']]['status'] = 'busy'
                         
             
             if len(self.currentTask) == 0 and self.currentWorkers == 0:
@@ -443,7 +453,8 @@ class Master:
             'worker_host': w_host,
             'worker_port': w_port,
             'worker_pid': w_pid,
-            'status': 'ready'
+            'status': 'ready',
+            'task': None
         }
 
         self.workers[w_pid] = worker
