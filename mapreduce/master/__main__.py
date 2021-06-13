@@ -122,10 +122,10 @@ class Master:
                     if self.workers[w_pid]['status'] != 'dead':
                         print('WORKER', w_pid, 'FATALITY!!!')
                         self.workers[w_pid]['status'] = 'dead'
+                        self.worker_reg_order.remove(work['worker_pid'])
                         
                         if work['task'] != None:
                             self.currentTask.append(work['task'])
-                            self.worker_reg_order.remove(work['worker_pid'])
                             self.check_jobs()
 
                 self.ping_ids = []
