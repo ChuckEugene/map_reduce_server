@@ -120,13 +120,33 @@ class Master:
                 #if 5 missed pings set it to dead
                 if missed_pings[w_pid] > 4:
                     if self.workers[w_pid]['status'] != 'dead':
-                        print('WORKER', w_pid, 'FATALITY!!!')
+                        #print('WORKER', w_pid, 'FATALITY!!!')
                         self.workers[w_pid]['status'] = 'dead'
                         self.worker_reg_order.remove(w_pid)
                         
-                        if self.workers[w_pid]['task'] != None:
-                            self.currentTask.append(self.workers[w_pid]['task'])
-                            self.check_jobs()
+                        if self.workers[w_pid]['taskMessage'] != None:
+                            #print("Assigning")
+                            workerReady = False
+                            for pid in self.worker_reg_order:
+                                worker = self.workers[pid]
+                                jobDict = self.jobs[0]
+                                if worker['status'] == "ready":
+                                    
+                                    #print(str(pid) + " is ready for business")
+                                    #print(self.workers[w_pid]['taskMessage'])
+                                                                            
+                                    self.send_message(worker['worker_port'], self.workers[w_pid]['taskMessage'])
+
+                                    self.workers[worker['worker_pid']]['task'] = self.workers[w_pid]['taskMessage']
+
+                                    self.workers[worker['worker_pid']]['status'] = 'busy'
+                                    workerReady = True
+                                    break
+                                    
+                            if workerReady == False:
+                                self.currentTask.append(self.workers[w_pid]['taskMessage']['input_files'])
+                                
+                            
 
                 self.ping_ids = []
 
@@ -180,6 +200,7 @@ class Master:
 
         if msg_type == 'register':
             self.register(message)
+            print("Registering: " + str(message['worker_pid']))
             #if len(self.workers) == 1:
             self.check_jobs()
 
@@ -187,6 +208,8 @@ class Master:
             self.new_master_job(message)
             
         if msg_type == 'status':
+            
+            #print("Getting a message from " + str(message['worker_pid']))
             
             if self.workers[message['worker_pid']]['status'] != "ready":
                 self.currentWorkers = self.currentWorkers - 1
@@ -280,10 +303,12 @@ class Master:
 
                         task = self.currentTask.pop(0)
                         self.currentWorkers = self.currentWorkers + 1
-
-                        self.send_message(worker['worker_pid'],message)
                         
-                        self.workers[worker['worker_pid']]['task'] = task
+                        print(worker['worker_pid'])
+
+                        self.send_message(worker['worker_port'],message)
+                        
+                        self.workers[worker['worker_pid']]['taskMessage'] = message
 
                         self.workers[worker['worker_pid']]['status'] = 'busy'
                                     
@@ -338,9 +363,9 @@ class Master:
                         task = self.currentTask.pop(0)
                         self.currentWorkers = self.currentWorkers + 1
 
-                        self.send_message(worker['worker_pid'],message)
+                        self.send_message(worker['worker_port'],message)
                         
-                        self.workers[worker['worker_pid']]['task'] = task
+                        self.workers[worker['worker_pid']]['taskMessage'] = message
                         self.workers[worker['worker_pid']]['status'] = 'busy'
                         
             
@@ -399,10 +424,10 @@ class Master:
                         self.currentWorkers = self.currentWorkers + 1
                         
 
-                        self.send_message(worker['worker_pid'],message)
+                        self.send_message(worker['worker_port'],message)
                         
                         
-                        self.workers[worker['worker_pid']]['task'] = task
+                        self.workers[worker['worker_pid']]['taskMessage'] = message
                         self.workers[worker['worker_pid']]['status'] = 'busy'
                         
             
@@ -454,7 +479,7 @@ class Master:
             'worker_port': w_port,
             'worker_pid': w_pid,
             'status': 'ready',
-            'task': None
+            'taskMessage': None
         }
 
         self.workers[w_pid] = worker
@@ -467,7 +492,7 @@ class Master:
             'worker_port': w_port,
             'worker_pid': w_pid
         }
-
+        
         self.send_message(w_port, worker_msg)
 
 
@@ -486,13 +511,19 @@ class Master:
 
     def send_message(self,port,message):
         try:
-            print("Try to connect to " + str(port))
+            print("Try to holla at " + str(port))
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect(('localhost', port))
             json_msg = json.dumps(message)
             sock.sendall(json_msg.encode('utf-8'))
             sock.close()
         except:
+            
+            
+            for work in self.workers:
+                print(work)
+                print(self.workers[work]['status'])
+            
             print("Error")
 
 
