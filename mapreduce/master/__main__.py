@@ -62,7 +62,8 @@ class Master:
         #the threads are run
         for thread in self.threads:
             thread.start()
-            
+        
+        TCP_listener.join()
                 
         
     def listen_UDP(self):
@@ -120,7 +121,6 @@ class Master:
                 #if 5 missed pings set it to dead
                 if missed_pings[w_pid] > 4:
                     if self.workers[w_pid]['status'] != 'dead':
-                        #print('WORKER', w_pid, 'FATALITY!!!')
                         self.workers[w_pid]['status'] = 'dead'
                         self.worker_reg_order.remove(w_pid)
                         
@@ -130,11 +130,13 @@ class Master:
                                 worker = self.workers[pid]
                                 jobDict = self.jobs[0]
                                 if worker['status'] == "ready":
-                                                                            
-                                    self.send_message(worker['worker_port'], self.workers[w_pid]['taskMessage'])
-
-                                    self.workers[worker['worker_pid']]['task'] = self.workers[w_pid]['taskMessage']
-
+                                    
+                                    task = self.workers[w_pid]['taskMessage']
+                                    task['worker_pid'] = pid
+                                    self.workers[worker['worker_pid']]['task'] = task
+                                    
+                                    self.send_message(worker['worker_port'], self.workers[w_pid]['taskMessage'])                
+                                    
                                     self.workers[worker['worker_pid']]['status'] = 'busy'
                                     workerReady = True
                                     break
@@ -268,6 +270,7 @@ class Master:
             self.check_jobs()
         
         if jobDict['status'] == "StartMap" or jobDict['status'] == "map":
+                        
             if len(self.currentTask) == 0 and jobDict['status'] == "StartMap": #self.currentTask initialized
                 logging.info("Master:%s begin map stage", self.port)
                 
