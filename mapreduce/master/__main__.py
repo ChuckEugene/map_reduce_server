@@ -122,10 +122,10 @@ class Master:
                     if self.workers[w_pid]['status'] != 'dead':
                         print('WORKER', w_pid, 'FATALITY!!!')
                         self.workers[w_pid]['status'] = 'dead'
-                        self.worker_reg_order.remove(work['worker_pid'])
+                        self.worker_reg_order.remove(w_pid)
                         
-                        if work['task'] != None:
-                            self.currentTask.append(work['task'])
+                        if self.workers[w_pid]['task'] != None:
+                            self.currentTask.append(self.workers[w_pid]['task'])
                             self.check_jobs()
 
                 self.ping_ids = []
@@ -486,6 +486,7 @@ class Master:
 
     def send_message(self,port,message):
         try:
+            print("Try to connect to " + str(port))
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect(('localhost', port))
             json_msg = json.dumps(message)
