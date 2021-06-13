@@ -181,6 +181,7 @@ def wait_for_messages(function, mock_socket, num=1, block=True):
 
     When block=False, yield betwen loop iterations, which is every 1 s.
     """
+    print("hello")
     for _ in range(TIMEOUT_LONG):
         messages = get_messages(mock_socket)
         n_true_messages = sum(function(m) for m in messages)
@@ -206,6 +207,7 @@ def wait_for_register_messages(mock_socket, num=1):
 
 def wait_for_map_messages(mock_socket, num=1, block=True):
     """Return after num map messages."""
+    print("Bruh")
     return wait_for_messages(is_map_message, mock_socket, num, block=block)
 
 
