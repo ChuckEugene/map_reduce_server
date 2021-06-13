@@ -125,15 +125,11 @@ class Master:
                         self.worker_reg_order.remove(w_pid)
                         
                         if self.workers[w_pid]['taskMessage'] != None:
-                            #print("Assigning")
                             workerReady = False
                             for pid in self.worker_reg_order:
                                 worker = self.workers[pid]
                                 jobDict = self.jobs[0]
                                 if worker['status'] == "ready":
-                                    
-                                    #print(str(pid) + " is ready for business")
-                                    #print(self.workers[w_pid]['taskMessage'])
                                                                             
                                     self.send_message(worker['worker_port'], self.workers[w_pid]['taskMessage'])
 
@@ -200,17 +196,12 @@ class Master:
 
         if msg_type == 'register':
             self.register(message)
-            print("Registering: " + str(message['worker_pid']))
-            #if len(self.workers) == 1:
             self.check_jobs()
 
         if msg_type == 'new_master_job':
             self.new_master_job(message)
             
-        if msg_type == 'status':
-            
-            #print("Getting a message from " + str(message['worker_pid']))
-            
+        if msg_type == 'status':            
             if self.workers[message['worker_pid']]['status'] != "ready":
                 self.currentWorkers = self.currentWorkers - 1
                 self.workers[message['worker_pid']]['status'] = "ready"
@@ -304,8 +295,6 @@ class Master:
                         task = self.currentTask.pop(0)
                         self.currentWorkers = self.currentWorkers + 1
                         
-                        print(worker['worker_pid'])
-
                         self.send_message(worker['worker_port'],message)
                         
                         self.workers[worker['worker_pid']]['taskMessage'] = message
@@ -511,19 +500,12 @@ class Master:
 
     def send_message(self,port,message):
         try:
-            print("Try to holla at " + str(port))
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect(('localhost', port))
             json_msg = json.dumps(message)
             sock.sendall(json_msg.encode('utf-8'))
             sock.close()
         except:
-            
-            
-            for work in self.workers:
-                print(work)
-                print(self.workers[work]['status'])
-            
             print("Error")
 
 
