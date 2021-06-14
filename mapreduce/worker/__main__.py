@@ -8,7 +8,6 @@ import threading
 import socket
 import subprocess
 import click
-import mapreduce.utils
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -27,9 +26,12 @@ class Worker:
         # Get PID
         self.pid = os.getpid()
 
-        listen_thread = threading.Thread(target=self.listeningToMaster,
+        listen_thread = threading.Thread(target=self.listen_master,
                                          args=(worker_port, master_port,))
         listen_thread.start()
+
+        self.heart_thread = threading.Thread(target=self.heartbeat,
+                                             args=(master_port,))
 
         # Send register message to Master
 
@@ -40,7 +42,7 @@ class Worker:
             "message_type": "register",
             "worker_host": "localhost",
             "worker_port": worker_port,
-            "worker_pid": self.pid
+            "worker_pid": os.getpid()
         }
 
         message = json.dumps(register_message)
@@ -49,7 +51,7 @@ class Worker:
 
         listen_thread.join()
 
-    def listeningToMaster(self, worker_port, master_port):
+    def listen_master(self, worker_port, master_port):
         """TCP Socket that listens for instructions."""
         listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -62,11 +64,11 @@ class Worker:
         # omit this, it blocks indefinitely, waiting for a connection.
         listen_sock.settimeout(1)
 
-        while True:
+        while self.alive:
             # Wait for a connection for 1s.  The socket library avoids
             # CPU while waiting for a connection.
             try:
-                clientsocket, address = listen_sock.accept()
+                clientsocket, _ = listen_sock.accept()
             except socket.timeout:
                 continue
 
@@ -97,65 +99,14 @@ class Worker:
 
             if message_dict['message_type'] == "shutdown":
                 self.alive = False
-                break
             elif message_dict['message_type'] == "register_ack":
                 self.alive = True
-                self.heart_thread = threading.Thread(target=self.heartbeat,
-                                                     args=(master_port,))
                 self.heart_thread.start()
             elif message_dict['message_type'] == "new_worker_task":
-
-                output_files = []
-
-                for file in message_dict['input_files']:
-                    with open(file) as inFile:
-                        with open(message_dict['output_directory'] + "/" + os.path.basename(file), 'w') as outFile:
-                            output_files.append(message_dict['output_directory'] +
-                                                "/" + os.path.basename(file))
-                            subprocess.run([message_dict['executable']],
-                                           stdin=inFile, stdout=outFile)
-
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect(("localhost", master_port))
-
-                register_message = {
-                  "message_type": "status",
-                  "output_files": output_files,
-                  "status": "finished",
-                  "worker_pid": self.pid
-                }
-
-                message = json.dumps(register_message)
-                sock.sendall(message.encode('utf-8'))
-                sock.close()
+                self.new_task(message_dict, master_port)
             elif message_dict['message_type'] == "new_sort_task":
+                self.new_sort(message_dict, master_port)
 
-                words = []
-
-                for file in message_dict['input_files']:
-                    with open(file, 'r') as inFile:
-                        for line in inFile.readlines():
-                            words.append(line)
-
-                words.sort()
-
-                with open(message_dict['output_file'], 'w') as outFile:
-                    for word in words:
-                        outFile.write(word)
-
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect(("localhost", master_port))
-
-                register_message = {
-                  "message_type": "status",
-                  "output_file": message_dict['output_file'],
-                  "status": "finished",
-                  "worker_pid": self.pid
-                }
-
-                message = json.dumps(register_message)
-                sock.sendall(message.encode('utf-8'))
-                sock.close()
         listen_sock.close()
 
     def heartbeat(self, master_port):
@@ -176,6 +127,63 @@ class Worker:
             sock.sendall(message.encode('utf-8'))
             sock.close()
             time.sleep(2)
+
+    def new_task(self, message_dict, master_port):
+        """Task case for worker."""
+        output_files = []
+
+        for file in message_dict['input_files']:
+            with open(file) as in_file:
+                output_dir = message_dict['output_directory'] + "/"
+                output_dir = output_dir + + os.path.basename(file)
+                with open(output_dir, 'w') as out_file:
+                    output_files.append(output_dir)
+                    subprocess.run([message_dict['executable']],
+                                   stdin=in_file, stdout=out_file,
+                                   check=True)
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(("localhost", master_port))
+
+        register_message = {
+          "message_type": "status",
+          "output_files": output_files,
+          "status": "finished",
+          "worker_pid": self.pid
+        }
+
+        message = json.dumps(register_message)
+        sock.sendall(message.encode('utf-8'))
+        sock.close()
+
+    def new_sort(self, message_dict, master_port):
+        """Sorting task for worker."""
+        words = []
+
+        for file in message_dict['input_files']:
+            with open(file, 'r') as in_file:
+                for line in in_file.readlines():
+                    words.append(line)
+
+        words.sort()
+
+        with open(message_dict['output_file'], 'w') as out_file:
+            for word in words:
+                out_file.write(word)
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(("localhost", master_port))
+
+        register_message = {
+          "message_type": "status",
+          "output_file": message_dict['output_file'],
+          "status": "finished",
+          "worker_pid": self.pid
+        }
+
+        message = json.dumps(register_message)
+        sock.sendall(message.encode('utf-8'))
+        sock.close()
 
 
 @click.command()
