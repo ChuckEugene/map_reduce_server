@@ -1,3 +1,4 @@
+"""Master."""
 import os
 import logging
 import json
@@ -18,7 +19,10 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 class Master:
+    """Master class."""
+    
     def __init__(self, port):
+        """Initialize master."""
         logging.info("Starting master:%s", port)
         logging.info("Master:%s PWD %s", port, os.getcwd())
 
@@ -67,6 +71,7 @@ class Master:
                 
         
     def listen_UDP(self):
+        """Listen to the UDP."""
         #the socket that takes in worker pings
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -93,7 +98,7 @@ class Master:
         sock.close()
 
     def fault_tolerance(self):
-
+        """Use for workers who die."""
         #container tracks workers that missed pings
         missed_pings = {}
         
@@ -152,7 +157,7 @@ class Master:
 
 
     def listen_TCP(self):
-
+        """Listen to the TCP."""
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("localhost", self.port))
@@ -191,6 +196,7 @@ class Master:
         sock.close()
 
     def handle_message(self, message):
+        """Handle the messages received."""
         msg_type = message['message_type']
         
         if msg_type == 'shutdown':
@@ -210,7 +216,8 @@ class Master:
                 self.check_jobs()
 
 
-    def check_jobs(self):        
+    def check_jobs(self):
+        """Check if jobs are available."""
         if self.activejob:
             self.run_job(self.jobs[0])
             return
@@ -221,6 +228,7 @@ class Master:
             return
 
     def run_job(self, jobDict):
+        """Run the job."""
         self.activejob = True
         #Run the job
                 
@@ -445,6 +453,7 @@ class Master:
         
 
     def new_master_job(self, message):
+        """Set up a new master job."""
         #assign job id and increment counter
         idstr = 'job-' + str(self.jobid)
 
@@ -462,6 +471,7 @@ class Master:
 
 
     def register(self, message):
+        """Register workers."""
         w_host = message['worker_host']
         w_port = message['worker_port']
         w_pid = message['worker_pid']
@@ -490,6 +500,7 @@ class Master:
 
 
     def shutdown(self):
+        """Shuts down master and workers."""
         message = {'message_type': 'shutdown'}
 
         for worker in self.workers.values():
@@ -502,6 +513,7 @@ class Master:
 
 
     def send_message(self,port,message):
+        """Send message to worker."""
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect(('localhost', port))
@@ -515,6 +527,7 @@ class Master:
 @click.command()
 @click.argument("port", nargs=1, type=int)
 def main(port):
+    """First function."""
     Master(port)
 
 
