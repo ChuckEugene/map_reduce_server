@@ -8,7 +8,6 @@ import threading
 import socket
 import subprocess
 import click
-import mapreduce.utils
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -27,8 +26,10 @@ class Worker:
         # Get PID
         self.pid = os.getpid()
 
-        listen_thread = threading.Thread(target=self.listeningToMaster,
+        listen_thread = threading.Thread(target=self.listening_to_master,
                                          args=(worker_port, master_port,))
+        self.heart_thread = threading.Thread(target=self.heartbeat,
+                                             args=(master_port,))
         listen_thread.start()
 
         # Send register message to Master
@@ -49,7 +50,7 @@ class Worker:
 
         listen_thread.join()
 
-    def listeningToMaster(self, worker_port, master_port):
+    def listening_to_master(self, worker_port, master_port):
         """TCP Socket that listens for instructions."""
         listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -98,22 +99,21 @@ class Worker:
             if message_dict['message_type'] == "shutdown":
                 self.alive = False
                 break
-            elif message_dict['message_type'] == "register_ack":
+            if message_dict['message_type'] == "register_ack":
                 self.alive = True
-                self.heart_thread = threading.Thread(target=self.heartbeat,
-                                                     args=(master_port,))
                 self.heart_thread.start()
             elif message_dict['message_type'] == "new_worker_task":
 
                 output_files = []
 
                 for file in message_dict['input_files']:
-                    with open(file) as inFile:
-                        with open(message_dict['output_directory'] + "/" + os.path.basename(file), 'w') as outFile:
+                    with open(file) as in_file:
+                        path = message_dict['output_directory'] + "/" + os.path.basename(file)
+                        with open(path, 'w') as out_file:
                             output_files.append(message_dict['output_directory'] +
                                                 "/" + os.path.basename(file))
                             subprocess.run([message_dict['executable']],
-                                           stdin=inFile, stdout=outFile)
+                                           stdin=in_file, stdout=out_file)
 
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.connect(("localhost", master_port))
@@ -133,15 +133,15 @@ class Worker:
                 words = []
 
                 for file in message_dict['input_files']:
-                    with open(file, 'r') as inFile:
-                        for line in inFile.readlines():
+                    with open(file, 'r') as in_file:
+                        for line in in_file.readlines():
                             words.append(line)
 
                 words.sort()
 
-                with open(message_dict['output_file'], 'w') as outFile:
+                with open(message_dict['output_file'], 'w') as out_file:
                     for word in words:
-                        outFile.write(word)
+                        out_file.write(word)
 
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.connect(("localhost", master_port))
