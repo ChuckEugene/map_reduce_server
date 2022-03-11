@@ -104,14 +104,15 @@ class Worker:
                 self.heart_thread.start()
             elif message_dict['message_type'] == "new_worker_task":
 
-                output_files = []
+                out = []
 
                 for file in message_dict['input_files']:
                     with open(file) as in_file:
-                        path = message_dict['output_directory'] + "/" + os.path.basename(file)
+                        pa = message_dict['output_directory'] + "/"
+                        path = pa + os.path.basename(file)
                         with open(path, 'w') as out_file:
-                            output_files.append(message_dict['output_directory'] +
-                                                "/" + os.path.basename(file))
+                            out.append(message_dict['output_directory'] +
+                                       "/" + os.path.basename(file))
                             subprocess.run([message_dict['executable']],
                                            stdin=in_file, stdout=out_file)
 
@@ -120,7 +121,7 @@ class Worker:
 
                 register_message = {
                   "message_type": "status",
-                  "output_files": output_files,
+                  "output_files": out,
                   "status": "finished",
                   "worker_pid": self.pid
                 }

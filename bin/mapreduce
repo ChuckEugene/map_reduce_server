@@ -3,12 +3,8 @@
 # mapreduce
 #
 # Start, stop, and check on the server
-#
-# Ahmed Usman <usmanaa@umich.edu>
-
 
 # Stop on errors, print commands
-# See https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
 set -Eeuo pipefail
 
 if [ -z ${1+x} ]; then exit 1; fi
@@ -45,8 +41,16 @@ stop_server(){
   echo '{"message_type": "shutdown"}' | $NC localhost 6000 || true
   sleep 2  # give the master time to receive signal and send to workers
 
-  echo "killing mapreduce master ..."
+
+  if pgrep -f mapreduce-master &> /dev/null; then
+  echo "killing mapreduce manager ..."
   pkill -f mapreduce-master || true
+  fi
+
+  if pgrep -f mapreduce-worker &> /dev/null; then
+  echo "killing mapreduce worker ..."
+  pkill -f mapreduce-worker || true
+  fi
 }
 
 #Start server

@@ -1,14 +1,6 @@
 """
 MapReduce job submission script.
 
-Before using this script, start the MapReduce server.
-$ ./bin/mapreduce start
-
-Then, submit a job.  Everything has a default.
-$ mapreduce-submit
-
-You can change any of the options.
-$ mapreduce-submit --help
 """
 
 import socket
@@ -63,8 +55,7 @@ def main(port,
          num_mappers,
          num_reducers):
     """Top level command line interface."""
-    # We want a bunch of arguments, this is the top level CLI.
-    # pylint: disable=too-many-arguments
+
     job_dict = {
         "message_type": "new_master_job",
         "input_directory": input_directory,
@@ -97,6 +88,5 @@ def main(port,
 
 
 if __name__ == "__main__":
-    # Click will provide the arguments, disable this pylint check.
-    # pylint: disable=no-value-for-parameter
+
     main()

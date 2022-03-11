@@ -1,8 +1,6 @@
 """
 Mapreduce python modules.
 
-Amy Chern <chernamy@umich.edu>
-Nilay Muchhala <nilaym@umich.edu>
 """
 
 from setuptools import setup
